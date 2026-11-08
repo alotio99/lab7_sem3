@@ -57,6 +57,25 @@ public class Main {
                 }
             }
 
+            System.out.println("\n----- Задание №3. Добавление своей композиции -----");
+
+            // пишем запрос с вопросами вместо значений, заглушки
+            String sqlInsert = "INSERT INTO study.music (id, name) VALUES (?, ?)";
+
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlInsert)) {
+                ps.setInt(1, 21); // ID новой песни
+                ps.setString(2, "Loser");
+                ps.executeUpdate(); // выполняем вставку
+            }
+
+            // gроверим, что песня добавилась
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT * FROM study.music WHERE id = 21")) {
+                if (rs.next()) {
+                    System.out.println("Успешно добавлена: " + rs.getInt("id") + ". " + rs.getString("name"));
+                }
+            }
+
         } catch (SQLException | IOException e) {
             System.err.println("Ошибка работы с базой данных или файлом: " + e.getMessage());
         }
