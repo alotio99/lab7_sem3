@@ -168,6 +168,20 @@ public class Main {
                 if (rs.next()) System.out.println("Уникальных посетителей в базе данных: " + rs.getInt("cnt"));
             }
 
+            System.out.println("\n----- Задание №5. Сортировка книг по году издания -----");
+
+            // запрос с ORDER BY (по умолчанию сортирует по возрастанию)
+            String sqlSortedBooks = "SELECT name, author, publishingYear FROM study.books ORDER BY publishingYear";
+
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sqlSortedBooks)) {
+
+                while (rs.next()) {
+                    System.out.println(rs.getInt("publishingYear") + " - " +
+                            rs.getString("name") + " (" + rs.getString("author") + ")");
+                }
+            }
+
         } catch (SQLException | IOException e) {
             System.err.println("Ошибка работы с базой данных или файлом: " + e.getMessage());
         }
