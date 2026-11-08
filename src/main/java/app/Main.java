@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -193,6 +194,72 @@ public class Main {
                 while (rs.next()) {
                     System.out.println(rs.getInt("publishingYear") + " - " +
                             rs.getString("name") + " (" + rs.getString("author") + ")");
+                }
+            }
+
+            System.out.println("\n----- Задание №7. Добавление посетителя и книг -----");
+
+            String myPhone = "88005553535";
+            String myName = "Ilya";
+            String mySurname = "Dudoshnikov";
+
+            // добавляю себя в таблицу посетителей
+            String insertMe = "MERGE INTO study.visitors (phone, name, surname, subscribed) " +
+                    "KEY(phone, name, surname) VALUES (?, ?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(insertMe)) {
+                ps.setString(1, myPhone);
+                ps.setString(2, myName);
+                ps.setString(3, mySurname);
+                ps.setBoolean(4, true); // подписка на рассылку
+                ps.executeUpdate();
+            }
+
+            // добавляю две любимые книги
+            String[][] myBooks = {
+                    {"9195939390", "Take That!", "Vladimir Mayakovsky", "1913"},
+                    {"4828081818", "To You!", "Vladimir Mayakovsky", "1915"}
+            };
+
+            String insertMyBook = "MERGE INTO study.books (isbn, name, author, publishingYear) " +
+                    "KEY(isbn) VALUES (?, ?, ?, ?)";
+            String insertMyLink = "INSERT INTO study.visitor_books (phone, name, surname, isbn) VALUES (?, ?, ?, ?)";
+
+            try (PreparedStatement psBook = conn.prepareStatement(insertMyBook);
+                 PreparedStatement psLink = conn.prepareStatement(insertMyLink)) {
+
+                for (String[] b : myBooks) {
+                    psBook.setString(1, b[0]);
+                    psBook.setString(2, b[1]);
+                    psBook.setString(3, b[2]);
+                    psBook.setInt(4, Integer.parseInt(b[3]));
+                    psBook.executeUpdate();
+
+                    // привязываю книгу к себе
+                    psLink.setString(1, myPhone);
+                    psLink.setString(2, myName);
+                    psLink.setString(3, mySurname);
+                    psLink.setString(4, b[0]);
+                    try {
+                        psLink.executeUpdate();
+                    } catch (SQLException ignored) {}
+                }
+            }
+
+            // читаем из базы и выводим информацию о себе и своих книгах
+            // используем JOIN, чтобы соединить три таблицы
+            String sqlMyInfo = "SELECT v.name, v.surname, b.name AS book_name, b.publishingYear " +
+                    "FROM study.visitors v " +
+                    "JOIN study.visitor_books vb ON v.phone = vb.phone AND v.name = vb.name AND v.surname = vb.surname " +
+                    "JOIN study.books b ON vb.isbn = b.isbn " +
+                    "WHERE v.phone = ?";
+
+            try (PreparedStatement ps = conn.prepareStatement(sqlMyInfo)) {
+                ps.setString(1, myPhone);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        System.out.println("Посетитель: " + rs.getString("name") + " " + rs.getString("surname") +
+                                " | Книга: " + rs.getString("book_name") + " (" + rs.getInt("publishingYear") + ")");
+                    }
                 }
             }
 
