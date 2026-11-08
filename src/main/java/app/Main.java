@@ -263,6 +263,17 @@ public class Main {
                 }
             }
 
+            System.out.println("\n----- Задание №8. Удаление таблиц -----");
+
+            try (Statement stmt = conn.createStatement()) {
+                // удаляем сначала таблицу связей, потом сами таблицы
+                stmt.execute("DROP TABLE IF EXISTS study.visitor_books");
+                stmt.execute("DROP TABLE IF EXISTS study.books");
+                stmt.execute("DROP TABLE IF EXISTS study.visitors");
+
+                System.out.println("Таблицы посетителей и книг успешно удалены.");
+            }
+
         } catch (SQLException | IOException e) {
             System.err.println("Ошибка работы с базой данных или файлом: " + e.getMessage());
         }
