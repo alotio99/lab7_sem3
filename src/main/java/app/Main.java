@@ -9,6 +9,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.io.FileReader;
+import java.lang.reflect.Type;
+import java.util.List;
+
 public class Main {
     // подключение к базе в оперативной памяти
     private static final String URL = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1";
@@ -68,12 +74,94 @@ public class Main {
                 ps.executeUpdate(); // выполняем вставку
             }
 
-            // gроверим, что песня добавилась
+            // проверим, что песня добавилась
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery("SELECT * FROM study.music WHERE id = 21")) {
                 if (rs.next()) {
                     System.out.println("Успешно добавлена: " + rs.getInt("id") + ". " + rs.getString("name"));
                 }
+            }
+
+            System.out.println("\n----- Задание №4. Загрузка данных из JSON -----");
+
+            // создаем таблицы (связь через isbn для книг и телефон для посетителей)
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("CREATE TABLE IF NOT EXISTS study.books (" +
+                        "isbn VARCHAR(20) PRIMARY KEY, " +
+                        "name VARCHAR(255), " +
+                        "author VARCHAR(255), " +
+                        "publishingYear INT)");
+
+                stmt.execute("CREATE TABLE IF NOT EXISTS study.visitors (" +
+                        "phone VARCHAR(20) PRIMARY KEY, " +
+                        "name VARCHAR(100), " +
+                        "surname VARCHAR(100), " +
+                        "subscribed BOOLEAN)");
+
+                // таблица связи, кто какие книги любит
+                stmt.execute("CREATE TABLE IF NOT EXISTS study.visitor_books (" +
+                        "phone VARCHAR(20), " +
+                        "isbn VARCHAR(20), " +
+                        "PRIMARY KEY (phone, isbn), " +
+                        "FOREIGN KEY (phone) REFERENCES study.visitors(phone), " +
+                        "FOREIGN KEY (isbn) REFERENCES study.books(isbn))");
+            }
+
+            // читаем JSON с помощью Gson
+            Gson gson = new Gson();
+            List<Visitor> visitors;
+            try (FileReader reader = new FileReader("books.json")) {
+                Type listType = new TypeToken<List<Visitor>>() {}.getType();
+                visitors = gson.fromJson(reader, listType);
+            }
+
+            // MERGE INTO: если ключ (isbn/phone) уже есть, H2 просто пропустит вставку
+            String insertBook = "MERGE INTO study.books (isbn, name, author, publishingYear) " +
+                    "KEY(isbn) VALUES (?, ?, ?, ?)";
+            String insertVisitor = "MERGE INTO study.visitors (phone, name, surname, subscribed) " +
+                    "KEY(phone) VALUES (?, ?, ?, ?)";
+            String insertLink = "INSERT INTO study.visitor_books (phone, isbn) VALUES (?, ?)";
+
+            try (java.sql.PreparedStatement psBook = conn.prepareStatement(insertBook);
+                 java.sql.PreparedStatement psVisitor = conn.prepareStatement(insertVisitor);
+                 java.sql.PreparedStatement psLink = conn.prepareStatement(insertLink)) {
+
+                for (Visitor v : visitors) {
+                    // добавляем посетителя
+                    psVisitor.setString(1, v.phone);
+                    psVisitor.setString(2, v.name);
+                    psVisitor.setString(3, v.surname);
+                    psVisitor.setBoolean(4, v.subscribed);
+                    psVisitor.executeUpdate();
+
+                    // добавляем его книги
+                    for (Book b : v.favoriteBooks) {
+                        psBook.setString(1, b.isbn);
+                        psBook.setString(2, b.name);
+                        psBook.setString(3, b.author);
+                        psBook.setInt(4, b.publishingYear);
+                        psBook.executeUpdate();
+
+                        // связываем посетителя и книгу
+                        psLink.setString(1, v.phone);
+                        psLink.setString(2, b.isbn);
+                        try {
+                            psLink.executeUpdate();
+                        } catch (SQLException e) {
+                            // если связь уже есть (повтор), игнорируем ошибку
+                        }
+                    }
+                }
+            }
+
+            // проверяем, сколько уникальных книг и посетителей
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as cnt FROM study.books")) {
+                if (rs.next()) System.out.println("Уникальных книг в базе данных: " + rs.getInt("cnt"));
+            }
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as cnt FROM study.visitors")) {
+                if (rs.next()) System.out.println("Уникальных посетителей в базе данных: " + rs.getInt("cnt"));
             }
 
         } catch (SQLException | IOException e) {
