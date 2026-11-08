@@ -93,17 +93,19 @@ public class Main {
                         "publishingYear INT)");
 
                 stmt.execute("CREATE TABLE IF NOT EXISTS study.visitors (" +
-                        "phone VARCHAR(20) PRIMARY KEY, " +
+                        "phone VARCHAR(20), " +
                         "name VARCHAR(100), " +
                         "surname VARCHAR(100), " +
-                        "subscribed BOOLEAN)");
+                        "subscribed BOOLEAN, " +
+                        "PRIMARY KEY (phone, name, surname))");
 
                 // таблица связи, кто какие книги любит
                 stmt.execute("CREATE TABLE IF NOT EXISTS study.visitor_books (" +
                         "phone VARCHAR(20), " +
+                        "name VARCHAR(100), " + // добавили имя
+                        "surname VARCHAR(100), " + // добавили фамилию
                         "isbn VARCHAR(20), " +
-                        "PRIMARY KEY (phone, isbn), " +
-                        "FOREIGN KEY (phone) REFERENCES study.visitors(phone), " +
+                        "PRIMARY KEY (phone, name, surname, isbn), " +
                         "FOREIGN KEY (isbn) REFERENCES study.books(isbn))");
             }
 
@@ -119,8 +121,8 @@ public class Main {
             String insertBook = "MERGE INTO study.books (isbn, name, author, publishingYear) " +
                     "KEY(isbn) VALUES (?, ?, ?, ?)";
             String insertVisitor = "MERGE INTO study.visitors (phone, name, surname, subscribed) " +
-                    "KEY(phone) VALUES (?, ?, ?, ?)";
-            String insertLink = "INSERT INTO study.visitor_books (phone, isbn) VALUES (?, ?)";
+                    "KEY(phone, name, surname) VALUES (?, ?, ?, ?)";
+            String insertLink = "INSERT INTO study.visitor_books (phone, name, surname, isbn) VALUES (?, ?, ?, ?)";
 
             try (java.sql.PreparedStatement psBook = conn.prepareStatement(insertBook);
                  java.sql.PreparedStatement psVisitor = conn.prepareStatement(insertVisitor);
@@ -144,7 +146,9 @@ public class Main {
 
                         // связываем посетителя и книгу
                         psLink.setString(1, v.phone);
-                        psLink.setString(2, b.isbn);
+                        psLink.setString(2, v.name);
+                        psLink.setString(3, v.surname);
+                        psLink.setString(4, b.isbn);
                         try {
                             psLink.executeUpdate();
                         } catch (SQLException e) {
