@@ -182,6 +182,20 @@ public class Main {
                 }
             }
 
+            System.out.println("\n----- Задание №6. Книги до 2000 года -----");
+
+            // запрос с условием WHERE < 2000
+            String sqlOldBooks = "SELECT name, author, publishingYear FROM study.books WHERE publishingYear < 2000";
+
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sqlOldBooks)) {
+
+                while (rs.next()) {
+                    System.out.println(rs.getInt("publishingYear") + " - " +
+                            rs.getString("name") + " (" + rs.getString("author") + ")");
+                }
+            }
+
         } catch (SQLException | IOException e) {
             System.err.println("Ошибка работы с базой данных или файлом: " + e.getMessage());
         }
