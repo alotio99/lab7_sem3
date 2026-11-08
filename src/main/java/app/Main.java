@@ -42,6 +42,21 @@ public class Main {
                 }
             }
 
+            System.out.println("\n----- Задание №2. Композиции без букв 'm' и 't' -----");
+
+            // LOWER() переводит в нижний регистр, NOT LIKE ищет отсутствие буквы
+            String sqlFiltered = "SELECT * FROM study.music " +
+                    "WHERE LOWER(name) NOT LIKE '%m%' " +
+                    "AND LOWER(name) NOT LIKE '%t%'";
+
+            try (Statement stmt = conn.createStatement(); // отправляется в базу
+                 ResultSet rs = stmt.executeQuery(sqlFiltered)) { // читает информацию от туда
+
+                while (rs.next()) {
+                    System.out.println(rs.getInt("id") + ". " + rs.getString("name"));
+                }
+            }
+
         } catch (SQLException | IOException e) {
             System.err.println("Ошибка работы с базой данных или файлом: " + e.getMessage());
         }
